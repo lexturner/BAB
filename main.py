@@ -15,15 +15,15 @@ class Blog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(120))
     body = db.Column(db.String(1200))
-    completed = db.Column(db.Boolean)
+    completed = db.Column(db.DateTime)
 
     def __init__(self, title, body):
         self.title = title
         self.body = body
-        self.created = datetime.utcnow()
+        self.completed = datetime.utcnow()
 
     def is_valid(self):
-        if self.title and self.body and self.created:
+        if self.title and self.body and self.completed:
             return True
         else:
             return False
@@ -46,9 +46,9 @@ def blog_index():
     sort = request.args.get('sort')
 
     if (sort=="newest"):
-        blogs = Blog.query.order_by(Blog.created.desc()).all()
+        blogs = Blog.query.order_by(Blog.completed.desc()).all()
     elif (sort=="oldest"):
-        blogs = Blog.query.order_by(Blog.created.asc()).all()
+        blogs = Blog.query.order_by(Blog.completed.asc()).all()
     else:
         blogs = Blog.query.all()
     return render_template('blog.html', title="Build A Blog", blogs=blogs)
@@ -66,7 +66,34 @@ def blog_index():
 #        new_task = Task(task_name)
 #        db.session.add(new_task)
 #        db.session.commit()
+@app.route('/post')
+def new_post():
+    return render_template('post.html', title="Add New Blog Entry")
 
+# handler route to validate post title & body fields
+@app.route('/post', methods=['POST'])
+def verify_post():
+    blog_title = request.form['title']
+    blog_body = request.form['body']
+    title_error = ''
+    body_error = ''
+
+    if blog_title == "":
+        title_error = "Title required."
+    if blog_body == "":
+        body_error = "Content required."
+
+    # add new blog post and commit it to table with new id.
+    if not title_error and not body_error:
+        new_blog = Blog(blog_title, blog_body)
+        db.session.add(new_blog)
+        db.session.commit()
+        blog = new_blog.id
+        # Use Case 2: After adding a new blog post, instead of going back to the main page, we go to that blog post's individual entry page. Redirect to specific blog id page.
+        return redirect('/blog?id={0}'.format(blog))
+    else:
+        # return user to post page with errors.
+        return render_template('post.html', title="Add New Blog Entry", blog_title = blog_title, blog_body = blog_body, title_error = title_error, body_error = body_error)
     tasks = Task.query.filter_by(completed=False).all()
     completed_tasks = Task.query.filter_by(completed=True).all()
     return render_template('todos.html',title="Get It Done!", 
